@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Referral = {
   id: number;
@@ -55,6 +55,17 @@ function digitsOnly(value: string) {
 function phoneForMessageLink(value: string) {
   const digits = digitsOnly(value);
   return digits.length === 10 ? `1${digits}` : digits;
+}
+
+function saveReferrerPhoneCookie(phone: string) {
+  document.cookie = `referrerPhone=${encodeURIComponent(phone)}; max-age=31536000; path=/; SameSite=Lax`;
+}
+
+function readReferrerPhoneCookie() {
+  return document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("referrerPhone="))
+    ?.split("=")[1];
 }
 
 export default function Home() {
@@ -117,6 +128,47 @@ export default function Home() {
     };
   }
 
+  async function searchChainByPhone(phone: string) {
+    setChainMessage("Searching...");
+    setChain([]);
+
+    const response = await fetch(`/api/referrer-chain?phone=${encodeURIComponent(phone)}`);
+    const result = (await response.json()) as {
+      referrer?: { name: string; phone: string; email: string } | null;
+      referrals?: typeof chain;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      setChainMessage(result.error || "Could not find that phone number.");
+      return;
+    }
+
+    if (!result.referrer) {
+      setChainMessage("No chain found yet. Add the first referral below.");
+      setForm((current) => ({ ...current, referrerPhone: phone }));
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      referrerName: result.referrer?.name || current.referrerName,
+      referrerPhone: result.referrer?.phone || phone,
+      referrerEmail: result.referrer?.email || current.referrerEmail,
+    }));
+    setChain(result.referrals || []);
+    setChainMessage(`Found ${result.referrals?.length || 0} referral${result.referrals?.length === 1 ? "" : "s"}.`);
+  }
+
+  useEffect(() => {
+    const savedPhone = readReferrerPhoneCookie();
+    if (!savedPhone) return;
+
+    const phone = decodeURIComponent(savedPhone);
+    setChainPhone(phone);
+    void searchChainByPhone(phone);
+  }, []);
+
   async function submitReferral(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -156,6 +208,7 @@ export default function Home() {
     }
 
     setLastSubmitted(created);
+    saveReferrerPhoneCookie(form.referrerPhone);
     setForm({ ...initialForm, referrerName: form.referrerName, referrerPhone: form.referrerPhone, referrerEmail: form.referrerEmail });
     setSupporters([{ ...emptySupporter }]);
     setChain((current) => [
@@ -196,35 +249,8 @@ export default function Home() {
   }
 
   async function searchChain() {
-    setChainMessage("Searching...");
-    setChain([]);
-
-    const response = await fetch(`/api/referrer-chain?phone=${encodeURIComponent(chainPhone)}`);
-    const result = (await response.json()) as {
-      referrer?: { name: string; phone: string; email: string } | null;
-      referrals?: typeof chain;
-      error?: string;
-    };
-
-    if (!response.ok) {
-      setChainMessage(result.error || "Could not find that phone number.");
-      return;
-    }
-
-    if (!result.referrer) {
-      setChainMessage("No chain found yet. Add the first referral below.");
-      setForm({ ...form, referrerPhone: chainPhone });
-      return;
-    }
-
-    setForm({
-      ...form,
-      referrerName: result.referrer.name,
-      referrerPhone: result.referrer.phone,
-      referrerEmail: result.referrer.email,
-    });
-    setChain(result.referrals || []);
-    setChainMessage(`Found ${result.referrals?.length || 0} referral${result.referrals?.length === 1 ? "" : "s"}.`);
+    saveReferrerPhoneCookie(chainPhone);
+    await searchChainByPhone(chainPhone);
   }
 
   async function loadDashboard() {
