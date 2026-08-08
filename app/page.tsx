@@ -39,6 +39,9 @@ const emptySupporter = {
   supporterAddress: "",
 };
 
+const defaultReferralMessage =
+  "Hi, I am supporting Shashi Singh for Peel District School Board Trustee in Mississauga Wards 6 and 11. Election day is October 26, 2026. Strong school, student first, bright future. Please support Shashi Singh.";
+
 const statusOptions = ["New", "Call today", "Door knock", "Confirmed", "Not supporting", "No answer"];
 
 function csvCell(value: string | number | boolean) {
@@ -58,6 +61,7 @@ export default function Home() {
   const [mode, setMode] = useState<"refer" | "dashboard">("refer");
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [referralMessage, setReferralMessage] = useState(defaultReferralMessage);
   const [supporters, setSupporters] = useState([{ ...emptySupporter }]);
   const [lastSubmitted, setLastSubmitted] = useState<{
     supporterName: string;
@@ -170,7 +174,7 @@ export default function Home() {
   }
 
   function messageFor(submission: (typeof lastSubmitted)[number]) {
-    return `Hi ${submission.supporterName}, ${submission.referrerName} suggested I contact you about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?`;
+    return `Hi ${submission.supporterName}, ${referralMessage}`;
   }
 
   function updateSupporter(index: number, field: keyof typeof emptySupporter, value: string) {
@@ -379,6 +383,10 @@ export default function Home() {
                 <input required inputMode="tel" value={form.referrerPhone} onChange={(event) => setForm({ ...form, referrerPhone: event.target.value })} />
               </label>
             </div>
+            <label>
+              Message to send
+              <textarea className="message-template" value={referralMessage} onChange={(event) => setReferralMessage(event.target.value)} />
+            </label>
             <div className="supporter-rows">
               {supporters.map((supporter, index) => (
                 <div className="supporter-row" key={index}>

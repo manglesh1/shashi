@@ -241,6 +241,10 @@ textarea {
   resize: vertical;
 }
 
+.message-template {
+  min-height: 64px;
+}
+
 input:focus,
 select:focus,
 textarea:focus,
