@@ -302,11 +302,6 @@ export default function Home() {
                 <input required inputMode="tel" value={form.referrerPhone} onChange={(event) => setForm({ ...form, referrerPhone: event.target.value })} />
               </label>
             </div>
-            <label>
-              Your email, optional
-              <input inputMode="email" value={form.referrerEmail} onChange={(event) => setForm({ ...form, referrerEmail: event.target.value })} />
-            </label>
-
             <div className="grid two">
               <label>
                 Supporter's name
@@ -321,30 +316,6 @@ export default function Home() {
               Supporter's address
               <input required value={form.supporterAddress} onChange={(event) => setForm({ ...form, supporterAddress: event.target.value })} />
             </label>
-            <div className="grid three">
-              <label>
-                Postal code
-                <input value={form.supporterPostal} onChange={(event) => setForm({ ...form, supporterPostal: event.target.value })} />
-              </label>
-              <label>
-                Ward
-                <select value={form.ward} onChange={(event) => setForm({ ...form, ward: event.target.value })}>
-                  <option>Ward 6</option>
-                  <option>Ward 11</option>
-                  <option>Ward 6 or 11</option>
-                  <option>Not sure</option>
-                </select>
-              </label>
-              <label>
-                Support level
-                <select value={form.supportLevel} onChange={(event) => setForm({ ...form, supportLevel: event.target.value })}>
-                  <option>Likely supporter</option>
-                  <option>Strong supporter</option>
-                  <option>Needs follow-up</option>
-                  <option>Undecided</option>
-                </select>
-              </label>
-            </div>
             <label>
               Notes, optional
               <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Best time to call, language preference, connection, or other helpful detail" />
