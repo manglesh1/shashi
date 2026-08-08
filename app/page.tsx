@@ -33,6 +33,12 @@ const initialForm = {
   notes: "",
 };
 
+const emptySupporter = {
+  supporterName: "",
+  supporterPhone: "",
+  supporterAddress: "",
+};
+
 const statusOptions = ["New", "Call today", "Door knock", "Confirmed", "Not supporting", "No answer"];
 
 function csvCell(value: string | number | boolean) {
@@ -52,11 +58,12 @@ export default function Home() {
   const [mode, setMode] = useState<"refer" | "dashboard">("refer");
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [supporters, setSupporters] = useState([{ ...emptySupporter }]);
   const [lastSubmitted, setLastSubmitted] = useState<{
     supporterName: string;
     supporterPhone: string;
     referrerName: string;
-  } | null>(null);
+  }[]>([]);
   const [chainPhone, setChainPhone] = useState("");
   const [chainMessage, setChainMessage] = useState("");
   const [chain, setChain] = useState<
@@ -110,45 +117,79 @@ export default function Home() {
     event.preventDefault();
     setSubmitting(true);
     setMessage("");
+    const filledSupporters = supporters.filter(
+      (supporter) => supporter.supporterName.trim() || supporter.supporterPhone.trim() || supporter.supporterAddress.trim()
+    );
 
-    const response = await fetch("/api/referrals", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    const result = (await response.json()) as { error?: string };
-    setSubmitting(false);
-
-    if (!response.ok) {
-      setMessage(result.error || "Please check the form and try again.");
+    if (!filledSupporters.length) {
+      setSubmitting(false);
+      setMessage("Please add at least one referral.");
       return;
     }
 
-    setLastSubmitted({
-      supporterName: form.supporterName,
-      supporterPhone: form.supporterPhone,
-      referrerName: form.referrerName,
-    });
+    const created: typeof lastSubmitted = [];
+
+    for (const supporter of filledSupporters) {
+      const response = await fetch("/api/referrals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...form, ...supporter, notes: "" }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setSubmitting(false);
+        setMessage(result.error || "Please check the form and try again.");
+        return;
+      }
+
+      created.push({
+        supporterName: supporter.supporterName,
+        supporterPhone: supporter.supporterPhone,
+        referrerName: form.referrerName,
+      });
+    }
+
+    setLastSubmitted(created);
     setForm({ ...initialForm, referrerName: form.referrerName, referrerPhone: form.referrerPhone, referrerEmail: form.referrerEmail });
+    setSupporters([{ ...emptySupporter }]);
     setChain((current) => [
-      {
-        id: Date.now(),
-        supporterName: form.supporterName,
+      ...created.map((supporter) => ({
+        id: Date.now() + Math.random(),
+        supporterName: supporter.supporterName,
         ward: form.ward,
         supportLevel: form.supportLevel,
         status: "New",
         createdAt: new Date().toISOString(),
-      },
+      })),
       ...current,
     ]);
-    setMessage("Thank you. This referral was added for campaign follow-up.");
+    setSubmitting(false);
+    setMessage(`Thank you. ${created.length} referral${created.length === 1 ? "" : "s"} added for campaign follow-up.`);
   }
 
-  const outgoingMessage = lastSubmitted
-    ? `Hi ${lastSubmitted.supporterName}, ${lastSubmitted.referrerName} suggested I contact you about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?`
-    : "";
-  const outgoingPhone = lastSubmitted ? phoneForMessageLink(lastSubmitted.supporterPhone) : "";
+  function messageFor(submission: (typeof lastSubmitted)[number]) {
+    return `Hi ${submission.supporterName}, ${submission.referrerName} suggested I contact you about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?`;
+  }
+
+  function updateSupporter(index: number, field: keyof typeof emptySupporter, value: string) {
+    setSupporters((current) =>
+      current.map((supporter, supporterIndex) =>
+        supporterIndex === index ? { ...supporter, [field]: value } : supporter
+      )
+    );
+  }
+
+  function addSupporterRow() {
+    setSupporters((current) => [...current, { ...emptySupporter }]);
+  }
+
+  function removeSupporterRow(index: number) {
+    setSupporters((current) =>
+      current.length === 1 ? current : current.filter((_, supporterIndex) => supporterIndex !== index)
+    );
+  }
 
   async function searchChain() {
     setChainMessage("Searching...");
@@ -338,24 +379,30 @@ export default function Home() {
                 <input required inputMode="tel" value={form.referrerPhone} onChange={(event) => setForm({ ...form, referrerPhone: event.target.value })} />
               </label>
             </div>
-            <div className="grid two">
-              <label>
-                Supporter's name
-                <input required value={form.supporterName} onChange={(event) => setForm({ ...form, supporterName: event.target.value })} />
-              </label>
-              <label>
-                Supporter's phone
-                <input required inputMode="tel" value={form.supporterPhone} onChange={(event) => setForm({ ...form, supporterPhone: event.target.value })} />
-              </label>
+            <div className="supporter-rows">
+              {supporters.map((supporter, index) => (
+                <div className="supporter-row" key={index}>
+                  <label>
+                    Supporter's name
+                    <input required value={supporter.supporterName} onChange={(event) => updateSupporter(index, "supporterName", event.target.value)} />
+                  </label>
+                  <label>
+                    Supporter's phone
+                    <input required inputMode="tel" value={supporter.supporterPhone} onChange={(event) => updateSupporter(index, "supporterPhone", event.target.value)} />
+                  </label>
+                  <label>
+                    Supporter's address
+                    <input required value={supporter.supporterAddress} onChange={(event) => updateSupporter(index, "supporterAddress", event.target.value)} />
+                  </label>
+                  <button type="button" onClick={() => removeSupporterRow(index)} disabled={supporters.length === 1}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="add-row" onClick={addSupporterRow}>
+                Add another referral
+              </button>
             </div>
-            <label>
-              Supporter's address
-              <input required value={form.supporterAddress} onChange={(event) => setForm({ ...form, supporterAddress: event.target.value })} />
-            </label>
-            <label>
-              Notes, optional
-              <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Best time to call, language preference, connection, or other helpful detail" />
-            </label>
             <label className="check-row">
               <input type="checkbox" checked={form.consentToContact} onChange={(event) => setForm({ ...form, consentToContact: event.target.checked })} />
               I believe this person is comfortable being contacted by the campaign.
@@ -364,20 +411,24 @@ export default function Home() {
               {submitting ? "Adding..." : "Submit referral"}
             </button>
             {message ? <p className={message.startsWith("Thank") ? "success" : "error"}>{message}</p> : null}
-            {lastSubmitted && outgoingPhone ? (
+            {lastSubmitted.length ? (
               <div className="send-panel">
-                <p>Send this person a quick message now.</p>
+                <p>Send messages to the people just added.</p>
                 <div className="send-actions">
-                  <a
-                    href={`https://wa.me/${outgoingPhone}?text=${encodeURIComponent(outgoingMessage)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    WhatsApp
-                  </a>
-                  <a href={`sms:+${outgoingPhone}?&body=${encodeURIComponent(outgoingMessage)}`}>
-                    Text message
-                  </a>
+                  {lastSubmitted.map((submission, index) => {
+                    const phone = phoneForMessageLink(submission.supporterPhone);
+                    const text = messageFor(submission);
+                    return (
+                      <span className="message-pair" key={`${submission.supporterPhone}-${index}`}>
+                        <a href={`https://wa.me/${phone}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
+                          WhatsApp {submission.supporterName}
+                        </a>
+                        <a href={`sms:+${phone}?&body=${encodeURIComponent(text)}`}>
+                          Text {submission.supporterName}
+                        </a>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
