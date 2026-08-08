@@ -10,6 +10,10 @@ function normalize(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function cleanPhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function requireAdmin(request: Request) {
   return request.headers.get("x-admin-code")?.trim() === ADMIN_CODE;
 }
@@ -42,9 +46,9 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as Record<string, unknown>;
     const referrerName = normalize(payload.referrerName);
-    const referrerPhone = normalize(payload.referrerPhone);
+    const referrerPhone = cleanPhone(normalize(payload.referrerPhone));
     const supporterName = normalize(payload.supporterName);
-    const supporterPhone = normalize(payload.supporterPhone);
+    const supporterPhone = cleanPhone(normalize(payload.supporterPhone));
     const supporterAddress = normalize(payload.supporterAddress);
 
     if (!referrerName || !referrerPhone || !supporterName || !supporterPhone || !supporterAddress) {

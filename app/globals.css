@@ -167,6 +167,7 @@ h3 {
   margin: 28px auto 64px;
 }
 
+.chain-search,
 .referral-form,
 .dashboard {
   border: 1px solid var(--line);
@@ -174,6 +175,39 @@ h3 {
   background: var(--panel);
   padding: clamp(18px, 4vw, 34px);
   box-shadow: 0 18px 60px rgba(26, 35, 25, 0.08);
+}
+
+.chain-search {
+  margin-bottom: 18px;
+}
+
+.chain-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 10px;
+}
+
+.chain-controls button {
+  border-radius: 6px;
+  padding: 0 18px;
+  font-weight: 800;
+}
+
+.chain-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chain-list span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  padding: 8px 12px;
+  color: var(--green-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .section-title {
@@ -382,6 +416,7 @@ button:focus-visible {
   }
 
   .admin-login,
+  .chain-controls,
   .mode-switch {
     grid-template-columns: 1fr;
   }

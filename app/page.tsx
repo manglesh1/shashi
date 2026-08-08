@@ -43,6 +43,11 @@ export default function Home() {
   const [mode, setMode] = useState<"refer" | "dashboard">("refer");
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [chainPhone, setChainPhone] = useState("");
+  const [chainMessage, setChainMessage] = useState("");
+  const [chain, setChain] = useState<
+    { id: number; supporterName: string; ward: string; supportLevel: string; status: string; createdAt: string }[]
+  >([]);
   const [submitting, setSubmitting] = useState(false);
   const [adminCode, setAdminCode] = useState("");
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -86,7 +91,50 @@ export default function Home() {
     }
 
     setForm({ ...initialForm, referrerName: form.referrerName, referrerPhone: form.referrerPhone, referrerEmail: form.referrerEmail });
+    setChain((current) => [
+      {
+        id: Date.now(),
+        supporterName: form.supporterName,
+        ward: form.ward,
+        supportLevel: form.supportLevel,
+        status: "New",
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
     setMessage("Thank you. This referral was added for campaign follow-up.");
+  }
+
+  async function searchChain() {
+    setChainMessage("Searching...");
+    setChain([]);
+
+    const response = await fetch(`/api/referrer-chain?phone=${encodeURIComponent(chainPhone)}`);
+    const result = (await response.json()) as {
+      referrer?: { name: string; phone: string; email: string } | null;
+      referrals?: typeof chain;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      setChainMessage(result.error || "Could not find that phone number.");
+      return;
+    }
+
+    if (!result.referrer) {
+      setChainMessage("No chain found yet. Add the first referral below.");
+      setForm({ ...form, referrerPhone: chainPhone });
+      return;
+    }
+
+    setForm({
+      ...form,
+      referrerName: result.referrer.name,
+      referrerPhone: result.referrer.phone,
+      referrerEmail: result.referrer.email,
+    });
+    setChain(result.referrals || []);
+    setChainMessage(`Found ${result.referrals?.length || 0} referral${result.referrals?.length === 1 ? "" : "s"}.`);
   }
 
   async function loadDashboard() {
@@ -189,6 +237,31 @@ export default function Home() {
 
       {mode === "refer" ? (
         <section className="workspace referral-workspace">
+          <div className="chain-search">
+            <div>
+              <p className="eyebrow">Continue your chain</p>
+              <h2>Find your referrals by phone</h2>
+            </div>
+            <div className="chain-controls">
+              <input
+                placeholder="Your phone number"
+                inputMode="tel"
+                value={chainPhone}
+                onChange={(event) => setChainPhone(event.target.value)}
+              />
+              <button onClick={searchChain}>Search</button>
+            </div>
+            {chainMessage ? <p className="notice">{chainMessage}</p> : null}
+            {chain.length ? (
+              <div className="chain-list">
+                {chain.map((item) => (
+                  <span key={item.id}>
+                    {item.supporterName} · {item.ward} · {item.status}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <form onSubmit={submitReferral} className="referral-form">
             <div className="section-title">
               <p className="eyebrow">For supporters</p>
