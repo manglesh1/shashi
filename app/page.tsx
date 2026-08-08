@@ -63,10 +63,15 @@ export default function Home() {
     { id: number; supporterName: string; ward: string; supportLevel: string; status: string; createdAt: string }[]
   >([]);
   const [submitting, setSubmitting] = useState(false);
-  const [adminCode, setAdminCode] = useState("");
+  const [adminUser, setAdminUser] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [dashboardMessage, setDashboardMessage] = useState("");
   const [filter, setFilter] = useState("All");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkMessage, setBulkMessage] = useState(
+    "Hi, this is a quick reminder about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?"
+  );
 
   const filteredReferrals = useMemo(() => {
     if (filter === "All") return referrals;
@@ -84,6 +89,22 @@ export default function Home() {
       { total: 0 } as Record<string, number>
     );
   }, [referrals]);
+
+  const selectedReferrals = useMemo(
+    () => referrals.filter((referral) => selectedIds.includes(referral.id)),
+    [referrals, selectedIds]
+  );
+
+  const selectedPhones = selectedReferrals
+    .map((referral) => phoneForMessageLink(referral.supporterPhone))
+    .filter(Boolean);
+
+  function adminHeaders() {
+    return {
+      "x-admin-user": adminUser,
+      "x-admin-password": adminPassword,
+    };
+  }
 
   async function submitReferral(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -164,7 +185,7 @@ export default function Home() {
   async function loadDashboard() {
     setDashboardMessage("Loading referrals...");
     const response = await fetch("/api/referrals", {
-      headers: { "x-admin-code": adminCode },
+      headers: adminHeaders(),
     });
     const result = (await response.json()) as { referrals?: Referral[]; error?: string };
 
@@ -174,13 +195,14 @@ export default function Home() {
     }
 
     setReferrals(result.referrals || []);
+    setSelectedIds([]);
     setDashboardMessage("");
   }
 
   async function updateReferral(id: number, status: string, notes: string) {
     const response = await fetch(`/api/referrals/${id}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json", "x-admin-code": adminCode },
+      headers: { "content-type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ status, notes }),
     });
 
@@ -231,6 +253,20 @@ export default function Home() {
     link.download = "ward-6-11-referrals.csv";
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  }
+
+  function selectVisible() {
+    setSelectedIds(filteredReferrals.map((referral) => referral.id));
+  }
+
+  function clearSelected() {
+    setSelectedIds([]);
   }
 
   return (
@@ -355,7 +391,8 @@ export default function Home() {
               <h2>Referral dashboard</h2>
             </div>
             <div className="admin-login">
-              <input placeholder="Access code" value={adminCode} onChange={(event) => setAdminCode(event.target.value)} />
+              <input placeholder="User ID" value={adminUser} onChange={(event) => setAdminUser(event.target.value)} />
+              <input placeholder="Password" type="password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} />
               <button className="primary" onClick={loadDashboard}>Open</button>
             </div>
           </div>
@@ -374,7 +411,46 @@ export default function Home() {
               <option>Ward 11</option>
               {statusOptions.map((status) => <option key={status}>{status}</option>)}
             </select>
+            <button onClick={selectVisible} disabled={!filteredReferrals.length}>Select visible</button>
+            <button onClick={clearSelected} disabled={!selectedIds.length}>Clear</button>
             <button onClick={exportCsv} disabled={!filteredReferrals.length}>Export CSV</button>
+          </div>
+
+          <div className="bulk-panel">
+            <div>
+              <p className="eyebrow">Mass message</p>
+              <h3>{selectedIds.length} selected</h3>
+            </div>
+            <textarea
+              value={bulkMessage}
+              onChange={(event) => setBulkMessage(event.target.value)}
+              placeholder="Message to selected people"
+            />
+            <div className="send-actions">
+              <a
+                className={selectedPhones.length ? "" : "disabled-link"}
+                href={selectedPhones.length ? `sms:${selectedPhones.map((phone) => `+${phone}`).join(",")}?&body=${encodeURIComponent(bulkMessage)}` : undefined}
+              >
+                Text selected
+              </a>
+            </div>
+            {selectedReferrals.length ? (
+              <div className="whatsapp-list">
+                {selectedReferrals.map((referral) => {
+                  const phone = phoneForMessageLink(referral.supporterPhone);
+                  return (
+                    <a
+                      key={referral.id}
+                      href={`https://wa.me/${phone}?text=${encodeURIComponent(bulkMessage)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      WhatsApp {referral.supporterName}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           {dashboardMessage ? <p className="notice">{dashboardMessage}</p> : null}
@@ -383,6 +459,14 @@ export default function Home() {
             {filteredReferrals.map((referral) => (
               <article className="referral-card" key={referral.id}>
                 <div className="card-main">
+                  <label className="select-row">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(referral.id)}
+                      onChange={() => toggleSelected(referral.id)}
+                    />
+                    Select
+                  </label>
                   <div>
                     <p className="eyebrow">{referral.ward} · {referral.supportLevel}</p>
                     <h3>{referral.supporterName}</h3>

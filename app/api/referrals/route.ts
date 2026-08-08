@@ -3,8 +3,9 @@ import { env } from "cloudflare:workers";
 import { ensureReferralSchema, getDb } from "../../../db";
 import { referrals } from "../../../db/schema";
 
-const ADMIN_CODE =
-  (env as unknown as { ADMIN_CODE?: string }).ADMIN_CODE?.trim() || "WARD611";
+const adminEnv = env as unknown as { ADMIN_USER?: string; ADMIN_PASSWORD?: string };
+const ADMIN_USER = adminEnv.ADMIN_USER?.trim() || "admin";
+const ADMIN_PASSWORD = adminEnv.ADMIN_PASSWORD?.trim() || "Ward611!";
 
 function normalize(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -15,7 +16,10 @@ function cleanPhone(value: string) {
 }
 
 function requireAdmin(request: Request) {
-  return request.headers.get("x-admin-code")?.trim() === ADMIN_CODE;
+  return (
+    request.headers.get("x-admin-user")?.trim() === ADMIN_USER &&
+    request.headers.get("x-admin-password")?.trim() === ADMIN_PASSWORD
+  );
 }
 
 function routeError(error: unknown) {
@@ -25,7 +29,7 @@ function routeError(error: unknown) {
 
 export async function GET(request: Request) {
   if (!requireAdmin(request)) {
-    return Response.json({ error: "Enter the campaign access code." }, { status: 401 });
+    return Response.json({ error: "Enter the admin user ID and password." }, { status: 401 });
   }
 
   try {

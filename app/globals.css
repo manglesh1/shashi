@@ -359,7 +359,7 @@ button:focus-visible {
 
 .admin-login {
   display: grid;
-  grid-template-columns: minmax(150px, 220px) auto;
+  grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) auto;
   gap: 10px;
 }
 
@@ -400,6 +400,43 @@ button:focus-visible {
   font-weight: 800;
 }
 
+.bulk-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 16px;
+}
+
+.bulk-panel textarea {
+  min-height: 78px;
+  background: #ffffff;
+}
+
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.whatsapp-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.whatsapp-list a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--green-strong);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .referral-list {
   display: grid;
   gap: 14px;
@@ -415,6 +452,19 @@ button:focus-visible {
 .card-main {
   justify-content: space-between;
   margin-bottom: 14px;
+}
+
+.select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 82px;
+  margin: 0;
+}
+
+.select-row input {
+  width: 18px;
+  min-height: 18px;
 }
 
 .card-actions {
