@@ -39,10 +39,24 @@ function csvCell(value: string | number | boolean) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function phoneForMessageLink(value: string) {
+  const digits = digitsOnly(value);
+  return digits.length === 10 ? `1${digits}` : digits;
+}
+
 export default function Home() {
   const [mode, setMode] = useState<"refer" | "dashboard">("refer");
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [lastSubmitted, setLastSubmitted] = useState<{
+    supporterName: string;
+    supporterPhone: string;
+    referrerName: string;
+  } | null>(null);
   const [chainPhone, setChainPhone] = useState("");
   const [chainMessage, setChainMessage] = useState("");
   const [chain, setChain] = useState<
@@ -90,6 +104,11 @@ export default function Home() {
       return;
     }
 
+    setLastSubmitted({
+      supporterName: form.supporterName,
+      supporterPhone: form.supporterPhone,
+      referrerName: form.referrerName,
+    });
     setForm({ ...initialForm, referrerName: form.referrerName, referrerPhone: form.referrerPhone, referrerEmail: form.referrerEmail });
     setChain((current) => [
       {
@@ -104,6 +123,11 @@ export default function Home() {
     ]);
     setMessage("Thank you. This referral was added for campaign follow-up.");
   }
+
+  const outgoingMessage = lastSubmitted
+    ? `Hi ${lastSubmitted.supporterName}, ${lastSubmitted.referrerName} suggested I contact you about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?`
+    : "";
+  const outgoingPhone = lastSubmitted ? phoneForMessageLink(lastSubmitted.supporterPhone) : "";
 
   async function searchChain() {
     setChainMessage("Searching...");
@@ -333,6 +357,23 @@ export default function Home() {
               {submitting ? "Adding..." : "Submit referral"}
             </button>
             {message ? <p className={message.startsWith("Thank") ? "success" : "error"}>{message}</p> : null}
+            {lastSubmitted && outgoingPhone ? (
+              <div className="send-panel">
+                <p>Send this person a quick message now.</p>
+                <div className="send-actions">
+                  <a
+                    href={`https://wa.me/${outgoingPhone}?text=${encodeURIComponent(outgoingMessage)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    WhatsApp
+                  </a>
+                  <a href={`sms:+${outgoingPhone}?&body=${encodeURIComponent(outgoingMessage)}`}>
+                    Text message
+                  </a>
+                </div>
+              </div>
+            ) : null}
           </form>
         </section>
       ) : (
