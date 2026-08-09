@@ -1,6 +1,6 @@
 import { createReferral, ensureReferralSchema, listReferrals } from "../../../db";
 
-const ADMIN_USER = process.env.ADMIN_USER?.trim() || "admin";
+const ADMIN_USER = process.env.ADMIN_USER?.trim() || "shyambhadauria@gmail.com";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || "Ward611!";
 
 function normalize(value: unknown) {
