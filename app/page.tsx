@@ -20,6 +20,7 @@ const emptySupporter = {
   supporterName: "",
   supporterPhone: "",
   supporterAddress: "",
+  ward: "Ward 6",
 };
 
 const defaultReferralMessage =
@@ -47,7 +48,7 @@ export default function Home() {
   const [referralMessage, setReferralMessage] = useState(defaultReferralMessage);
   const [supporters, setSupporters] = useState([{ ...emptySupporter }]);
   const [lastSubmitted, setLastSubmitted] = useState<
-    { supporterName: string; supporterPhone: string; referrerName: string }[]
+    { supporterName: string; supporterPhone: string; referrerName: string; ward: string }[]
   >([]);
   const [chainPhone, setChainPhone] = useState("");
   const [chainMessage, setChainMessage] = useState("");
@@ -133,6 +134,7 @@ export default function Home() {
         supporterName: supporter.supporterName,
         supporterPhone: supporter.supporterPhone,
         referrerName: form.referrerName,
+        ward: supporter.ward,
       });
     }
 
@@ -144,7 +146,7 @@ export default function Home() {
       ...created.map((supporter) => ({
         id: Date.now() + Math.random(),
         supporterName: supporter.supporterName,
-        ward: form.ward,
+        ward: supporter.ward,
         supportLevel: form.supportLevel,
         status: "New",
         createdAt: new Date().toISOString(),
@@ -252,6 +254,14 @@ export default function Home() {
                 <label>
                   Supporter's address
                   <input required value={supporter.supporterAddress} onChange={(event) => updateSupporter(index, "supporterAddress", event.target.value)} />
+                </label>
+                <label>
+                  Ward
+                  <select value={supporter.ward} onChange={(event) => updateSupporter(index, "ward", event.target.value)}>
+                    <option>Ward 6</option>
+                    <option>Ward 11</option>
+                    <option>Not sure</option>
+                  </select>
                 </label>
                 <button
                   type="button"
