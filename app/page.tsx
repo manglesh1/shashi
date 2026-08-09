@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 
 const initialForm = {
   referrerName: "",
@@ -158,7 +159,7 @@ export default function Home() {
   }
 
   function messageFor(submission: (typeof lastSubmitted)[number]) {
-    return `Hi ${submission.supporterName}, ${referralMessage}`;
+    return `Hi ${submission.supporterName}, ${referralMessage}\n\nFlyer: ${window.location.origin}/shashi-ward-map.jpeg`;
   }
 
   function updateSupporter(index: number, field: keyof typeof emptySupporter, value: string) {
@@ -223,6 +224,16 @@ export default function Home() {
           <div className="section-title">
             <p className="eyebrow">For supporters</p>
             <h2>Add referrals</h2>
+          </div>
+
+          <div className="flyer-preview">
+            <Image
+              src="/shashi-ward-map.jpeg"
+              alt="Elect Shashi Singh for Peel District School Board Trustee, Mississauga Wards 6 and 11"
+              width={1024}
+              height={1536}
+              priority
+            />
           </div>
 
           <div className="grid two">
