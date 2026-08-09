@@ -1,11 +1,7 @@
-import { eq, sql } from "drizzle-orm";
-import { env } from "cloudflare:workers";
-import { ensureReferralSchema, getDb } from "../../../../db";
-import { referrals } from "../../../../db/schema";
+import { ensureReferralSchema, updateReferral } from "../../../../db";
 
-const adminEnv = env as unknown as { ADMIN_USER?: string; ADMIN_PASSWORD?: string };
-const ADMIN_USER = adminEnv.ADMIN_USER?.trim() || "admin";
-const ADMIN_PASSWORD = adminEnv.ADMIN_PASSWORD?.trim() || "Ward611!";
+const ADMIN_USER = process.env.ADMIN_USER?.trim() || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || "Ward611!";
 
 function requireAdmin(request: Request) {
   return (
@@ -39,15 +35,7 @@ export async function PATCH(
     const notes = normalize(payload.notes);
 
     await ensureReferralSchema();
-    const [updated] = await getDb()
-      .update(referrals)
-      .set({
-        status,
-        notes,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(eq(referrals.id, referralId))
-      .returning();
+    const updated = await updateReferral(referralId, status, notes);
 
     if (!updated) {
       return Response.json({ error: "Referral not found." }, { status: 404 });

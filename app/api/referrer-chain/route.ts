@@ -1,6 +1,4 @@
-import { desc, eq } from "drizzle-orm";
-import { ensureReferralSchema, getDb } from "../../../db";
-import { referrals } from "../../../db/schema";
+import { ensureReferralSchema, listReferrerChain } from "../../../db";
 
 function cleanPhone(value: string) {
   return value.replace(/\D/g, "");
@@ -16,12 +14,7 @@ export async function GET(request: Request) {
 
   try {
     await ensureReferralSchema();
-    const rows = await getDb()
-      .select()
-      .from(referrals)
-      .where(eq(referrals.referrerPhone, phone))
-      .orderBy(desc(referrals.createdAt), desc(referrals.id))
-      .limit(50);
+    const rows = await listReferrerChain(phone);
 
     return Response.json({
       referrer: rows[0]

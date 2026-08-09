@@ -1,11 +1,7 @@
-import { desc } from "drizzle-orm";
-import { env } from "cloudflare:workers";
-import { ensureReferralSchema, getDb } from "../../../db";
-import { referrals } from "../../../db/schema";
+import { createReferral, ensureReferralSchema, listReferrals } from "../../../db";
 
-const adminEnv = env as unknown as { ADMIN_USER?: string; ADMIN_PASSWORD?: string };
-const ADMIN_USER = adminEnv.ADMIN_USER?.trim() || "admin";
-const ADMIN_PASSWORD = adminEnv.ADMIN_PASSWORD?.trim() || "Ward611!";
+const ADMIN_USER = process.env.ADMIN_USER?.trim() || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || "Ward611!";
 
 function normalize(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -34,12 +30,7 @@ export async function GET(request: Request) {
 
   try {
     await ensureReferralSchema();
-    const rows = await getDb()
-      .select()
-      .from(referrals)
-      .orderBy(desc(referrals.createdAt), desc(referrals.id))
-      .limit(500);
-
+    const rows = await listReferrals();
     return Response.json({ referrals: rows });
   } catch (error) {
     return routeError(error);
@@ -63,22 +54,19 @@ export async function POST(request: Request) {
     }
 
     await ensureReferralSchema();
-    const [created] = await getDb()
-      .insert(referrals)
-      .values({
-        referrerName,
-        referrerPhone,
-        referrerEmail: normalize(payload.referrerEmail),
-        supporterName,
-        supporterPhone,
-        supporterAddress,
-        supporterPostal: normalize(payload.supporterPostal).toUpperCase(),
-        ward: normalize(payload.ward) || "Ward 6 or 11",
-        supportLevel: normalize(payload.supportLevel) || "Needs follow-up",
-        consentToContact: Boolean(payload.consentToContact),
-        notes: normalize(payload.notes),
-      })
-      .returning();
+    const created = await createReferral({
+      referrerName,
+      referrerPhone,
+      referrerEmail: normalize(payload.referrerEmail),
+      supporterName,
+      supporterPhone,
+      supporterAddress,
+      supporterPostal: normalize(payload.supporterPostal).toUpperCase(),
+      ward: normalize(payload.ward) || "Ward 6 or 11",
+      supportLevel: normalize(payload.supportLevel) || "Needs follow-up",
+      consentToContact: Boolean(payload.consentToContact),
+      notes: normalize(payload.notes),
+    });
 
     return Response.json({ referral: created }, { status: 201 });
   } catch (error) {
