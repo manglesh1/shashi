@@ -1,23 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-
-type Referral = {
-  id: number;
-  referrerName: string;
-  referrerPhone: string;
-  referrerEmail: string;
-  supporterName: string;
-  supporterPhone: string;
-  supporterAddress: string;
-  supporterPostal: string;
-  ward: string;
-  supportLevel: string;
-  consentToContact: boolean;
-  status: string;
-  notes: string;
-  createdAt: string;
-};
+import { FormEvent, useEffect, useState } from "react";
 
 const initialForm = {
   referrerName: "",
@@ -42,18 +25,8 @@ const emptySupporter = {
 const defaultReferralMessage =
   "Hi, I am supporting Shashi Singh for Peel District School Board Trustee in Mississauga Wards 6 and 11. Election day is October 26, 2026. Strong school, student first, bright future. Please support Shashi Singh.";
 
-const statusOptions = ["New", "Call today", "Door knock", "Confirmed", "Not supporting", "No answer"];
-
-function csvCell(value: string | number | boolean) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
-}
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, "");
-}
-
 function phoneForMessageLink(value: string) {
-  const digits = digitsOnly(value);
+  const digits = value.replace(/\D/g, "");
   return digits.length === 10 ? `1${digits}` : digits;
 }
 
@@ -69,64 +42,19 @@ function readReferrerPhoneCookie() {
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<"refer" | "dashboard">("refer");
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [referralMessage, setReferralMessage] = useState(defaultReferralMessage);
   const [supporters, setSupporters] = useState([{ ...emptySupporter }]);
-  const [lastSubmitted, setLastSubmitted] = useState<{
-    supporterName: string;
-    supporterPhone: string;
-    referrerName: string;
-  }[]>([]);
+  const [lastSubmitted, setLastSubmitted] = useState<
+    { supporterName: string; supporterPhone: string; referrerName: string }[]
+  >([]);
   const [chainPhone, setChainPhone] = useState("");
   const [chainMessage, setChainMessage] = useState("");
   const [chain, setChain] = useState<
     { id: number; supporterName: string; ward: string; supportLevel: string; status: string; createdAt: string }[]
   >([]);
   const [submitting, setSubmitting] = useState(false);
-  const [adminUser, setAdminUser] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [dashboardMessage, setDashboardMessage] = useState("");
-  const [filter, setFilter] = useState("All");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [bulkMessage, setBulkMessage] = useState(
-    "Hi, this is a quick reminder about supporting our Mississauga trustee candidate in wards 6 and 11. Can we count on your support?"
-  );
-
-  const filteredReferrals = useMemo(() => {
-    if (filter === "All") return referrals;
-    return referrals.filter((referral) => referral.status === filter || referral.ward === filter);
-  }, [filter, referrals]);
-
-  const counts = useMemo(() => {
-    return referrals.reduce(
-      (acc, referral) => {
-        acc.total += 1;
-        acc[referral.status] = (acc[referral.status] ?? 0) + 1;
-        acc[referral.ward] = (acc[referral.ward] ?? 0) + 1;
-        return acc;
-      },
-      { total: 0 } as Record<string, number>
-    );
-  }, [referrals]);
-
-  const selectedReferrals = useMemo(
-    () => referrals.filter((referral) => selectedIds.includes(referral.id)),
-    [referrals, selectedIds]
-  );
-
-  const selectedPhones = selectedReferrals
-    .map((referral) => phoneForMessageLink(referral.supporterPhone))
-    .filter(Boolean);
-
-  function adminHeaders() {
-    return {
-      "x-admin-user": adminUser,
-      "x-admin-password": adminPassword,
-    };
-  }
 
   async function searchChainByPhone(phone: string) {
     setChainMessage("Searching...");
@@ -173,6 +101,7 @@ export default function Home() {
     event.preventDefault();
     setSubmitting(true);
     setMessage("");
+
     const filledSupporters = supporters.filter(
       (supporter) => supporter.supporterName.trim() || supporter.supporterPhone.trim() || supporter.supporterAddress.trim()
     );
@@ -238,106 +167,9 @@ export default function Home() {
     );
   }
 
-  function addSupporterRow() {
-    setSupporters((current) => [...current, { ...emptySupporter }]);
-  }
-
-  function removeSupporterRow(index: number) {
-    setSupporters((current) =>
-      current.length === 1 ? current : current.filter((_, supporterIndex) => supporterIndex !== index)
-    );
-  }
-
   async function searchChain() {
     saveReferrerPhoneCookie(chainPhone);
     await searchChainByPhone(chainPhone);
-  }
-
-  async function loadDashboard() {
-    setDashboardMessage("Loading referrals...");
-    const response = await fetch("/api/referrals", {
-      headers: adminHeaders(),
-    });
-    const result = (await response.json()) as { referrals?: Referral[]; error?: string };
-
-    if (!response.ok) {
-      setDashboardMessage(result.error || "Could not open the campaign dashboard.");
-      return;
-    }
-
-    setReferrals(result.referrals || []);
-    setSelectedIds([]);
-    setDashboardMessage("");
-  }
-
-  async function updateReferral(id: number, status: string, notes: string) {
-    const response = await fetch(`/api/referrals/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ status, notes }),
-    });
-
-    if (response.ok) {
-      setReferrals((current) =>
-        current.map((referral) =>
-          referral.id === id ? { ...referral, status, notes } : referral
-        )
-      );
-    }
-  }
-
-  function exportCsv() {
-    const headers = [
-      "Submitted",
-      "Status",
-      "Ward",
-      "Support level",
-      "Supporter name",
-      "Supporter phone",
-      "Address",
-      "Postal",
-      "Referrer name",
-      "Referrer phone",
-      "Referrer email",
-      "Consent",
-      "Notes",
-    ];
-    const rows = filteredReferrals.map((referral) => [
-      referral.createdAt,
-      referral.status,
-      referral.ward,
-      referral.supportLevel,
-      referral.supporterName,
-      referral.supporterPhone,
-      referral.supporterAddress,
-      referral.supporterPostal,
-      referral.referrerName,
-      referral.referrerPhone,
-      referral.referrerEmail,
-      referral.consentToContact,
-      referral.notes,
-    ]);
-    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "ward-6-11-referrals.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function toggleSelected(id: number) {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    );
-  }
-
-  function selectVisible() {
-    setSelectedIds(filteredReferrals.map((referral) => referral.id));
-  }
-
-  function clearSelected() {
-    setSelectedIds([]);
   }
 
   return (
@@ -347,239 +179,125 @@ export default function Home() {
           <p className="eyebrow">Mississauga wards 6 and 11</p>
           <h1>Trustee campaign referral tracker</h1>
           <p>
-            Collect supporter names, phone numbers, and addresses from friends and
-            volunteers so the campaign team can follow up before election day.
+            Add people you know who may support Shashi Singh for Peel District
+            School Board Trustee.
           </p>
-          <div className="mode-switch" aria-label="Choose view">
-            <button className={mode === "refer" ? "active" : ""} onClick={() => setMode("refer")}>
-              Add referral
-            </button>
-            <button className={mode === "dashboard" ? "active" : ""} onClick={() => setMode("dashboard")}>
-              Campaign dashboard
-            </button>
-          </div>
         </div>
-        <div className="hero-panel" aria-label="Campaign totals">
-          <span>{counts.total || "Share"}</span>
-          <strong>{counts.total ? "referrals collected" : "the link"}</strong>
+        <div className="hero-panel" aria-label="Referral prompt">
+          <span>Share</span>
+          <strong>your support chain</strong>
           <p>Ask every supporter to add three people who may vote in wards 6 or 11.</p>
         </div>
       </section>
 
-      {mode === "refer" ? (
-        <section className="workspace referral-workspace">
-          <div className="chain-search">
-            <div>
-              <p className="eyebrow">Continue your chain</p>
-              <h2>Find your referrals by phone</h2>
-            </div>
-            <div className="chain-controls">
-              <input
-                placeholder="Your phone number"
-                inputMode="tel"
-                value={chainPhone}
-                onChange={(event) => setChainPhone(event.target.value)}
-              />
-              <button onClick={searchChain}>Search</button>
-            </div>
-            {chainMessage ? <p className="notice">{chainMessage}</p> : null}
-            {chain.length ? (
-              <div className="chain-list">
-                {chain.map((item) => (
-                  <span key={item.id}>
-                    {item.supporterName} · {item.ward} · {item.status}
-                  </span>
-                ))}
-              </div>
-            ) : null}
+      <section className="workspace referral-workspace">
+        <div className="chain-search">
+          <div>
+            <p className="eyebrow">Your dashboard</p>
+            <h2>Find your referrals by phone</h2>
           </div>
-          <form onSubmit={submitReferral} className="referral-form">
-            <div className="section-title">
-              <p className="eyebrow">For supporters</p>
-              <h2>Add someone the campaign should contact</h2>
-            </div>
-
-            <div className="grid two">
-              <label>
-                Your name
-                <input required value={form.referrerName} onChange={(event) => setForm({ ...form, referrerName: event.target.value })} />
-              </label>
-              <label>
-                Your phone
-                <input required inputMode="tel" value={form.referrerPhone} onChange={(event) => setForm({ ...form, referrerPhone: event.target.value })} />
-              </label>
-            </div>
-            <label>
-              Message to send
-              <textarea className="message-template" value={referralMessage} onChange={(event) => setReferralMessage(event.target.value)} />
-            </label>
-            <div className="supporter-rows">
-              {supporters.map((supporter, index) => (
-                <div className="supporter-row" key={index}>
-                  <label>
-                    Supporter's name
-                    <input required value={supporter.supporterName} onChange={(event) => updateSupporter(index, "supporterName", event.target.value)} />
-                  </label>
-                  <label>
-                    Supporter's phone
-                    <input required inputMode="tel" value={supporter.supporterPhone} onChange={(event) => updateSupporter(index, "supporterPhone", event.target.value)} />
-                  </label>
-                  <label>
-                    Supporter's address
-                    <input required value={supporter.supporterAddress} onChange={(event) => updateSupporter(index, "supporterAddress", event.target.value)} />
-                  </label>
-                  <button type="button" onClick={() => removeSupporterRow(index)} disabled={supporters.length === 1}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button type="button" className="add-row" onClick={addSupporterRow}>
-                Add another referral
-              </button>
-            </div>
-            <label className="check-row">
-              <input type="checkbox" checked={form.consentToContact} onChange={(event) => setForm({ ...form, consentToContact: event.target.checked })} />
-              I believe this person is comfortable being contacted by the campaign.
-            </label>
-            <button className="primary" disabled={submitting}>
-              {submitting ? "Adding..." : "Submit referral"}
-            </button>
-            {message ? <p className={message.startsWith("Thank") ? "success" : "error"}>{message}</p> : null}
-            {lastSubmitted.length ? (
-              <div className="send-panel">
-                <p>Send messages to the people just added.</p>
-                <div className="send-actions">
-                  {lastSubmitted.map((submission, index) => {
-                    const phone = phoneForMessageLink(submission.supporterPhone);
-                    const text = messageFor(submission);
-                    return (
-                      <span className="message-pair" key={`${submission.supporterPhone}-${index}`}>
-                        <a href={`https://wa.me/${phone}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
-                          WhatsApp {submission.supporterName}
-                        </a>
-                        <a href={`sms:+${phone}?&body=${encodeURIComponent(text)}`}>
-                          Text {submission.supporterName}
-                        </a>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-          </form>
-        </section>
-      ) : (
-        <section className="workspace dashboard">
-          <div className="dashboard-top">
-            <div>
-              <p className="eyebrow">Campaign team</p>
-              <h2>Referral dashboard</h2>
-            </div>
-            <div className="admin-login">
-              <input placeholder="User ID" value={adminUser} onChange={(event) => setAdminUser(event.target.value)} />
-              <input placeholder="Password" type="password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} />
-              <button className="primary" onClick={loadDashboard}>Open</button>
-            </div>
-          </div>
-
-          <div className="metrics">
-            <div><span>{counts.total}</span><p>Total referrals</p></div>
-            <div><span>{counts["Ward 6"] || 0}</span><p>Ward 6</p></div>
-            <div><span>{counts["Ward 11"] || 0}</span><p>Ward 11</p></div>
-            <div><span>{counts["Confirmed"] || 0}</span><p>Confirmed</p></div>
-          </div>
-
-          <div className="toolbar">
-            <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-              <option>All</option>
-              <option>Ward 6</option>
-              <option>Ward 11</option>
-              {statusOptions.map((status) => <option key={status}>{status}</option>)}
-            </select>
-            <button onClick={selectVisible} disabled={!filteredReferrals.length}>Select visible</button>
-            <button onClick={clearSelected} disabled={!selectedIds.length}>Clear</button>
-            <button onClick={exportCsv} disabled={!filteredReferrals.length}>Export CSV</button>
-          </div>
-
-          <div className="bulk-panel">
-            <div>
-              <p className="eyebrow">Mass message</p>
-              <h3>{selectedIds.length} selected</h3>
-            </div>
-            <textarea
-              value={bulkMessage}
-              onChange={(event) => setBulkMessage(event.target.value)}
-              placeholder="Message to selected people"
+          <div className="chain-controls">
+            <input
+              placeholder="Your phone number"
+              inputMode="tel"
+              value={chainPhone}
+              onChange={(event) => setChainPhone(event.target.value)}
             />
-            <div className="send-actions">
-              <a
-                className={selectedPhones.length ? "" : "disabled-link"}
-                href={selectedPhones.length ? `sms:${selectedPhones.map((phone) => `+${phone}`).join(",")}?&body=${encodeURIComponent(bulkMessage)}` : undefined}
-              >
-                Text selected
-              </a>
+            <button onClick={searchChain}>Search</button>
+          </div>
+          {chainMessage ? <p className="notice">{chainMessage}</p> : null}
+          {chain.length ? (
+            <div className="chain-list">
+              {chain.map((item) => (
+                <span key={item.id}>
+                  {item.supporterName} - {item.ward} - {item.status}
+                </span>
+              ))}
             </div>
-            {selectedReferrals.length ? (
-              <div className="whatsapp-list">
-                {selectedReferrals.map((referral) => {
-                  const phone = phoneForMessageLink(referral.supporterPhone);
+          ) : null}
+        </div>
+
+        <form onSubmit={submitReferral} className="referral-form">
+          <div className="section-title">
+            <p className="eyebrow">For supporters</p>
+            <h2>Add referrals</h2>
+          </div>
+
+          <div className="grid two">
+            <label>
+              Your name
+              <input required value={form.referrerName} onChange={(event) => setForm({ ...form, referrerName: event.target.value })} />
+            </label>
+            <label>
+              Your phone
+              <input required inputMode="tel" value={form.referrerPhone} onChange={(event) => setForm({ ...form, referrerPhone: event.target.value })} />
+            </label>
+          </div>
+          <label>
+            Message to send
+            <textarea className="message-template" value={referralMessage} onChange={(event) => setReferralMessage(event.target.value)} />
+          </label>
+
+          <div className="supporter-rows">
+            {supporters.map((supporter, index) => (
+              <div className="supporter-row" key={index}>
+                <label>
+                  Supporter's name
+                  <input required value={supporter.supporterName} onChange={(event) => updateSupporter(index, "supporterName", event.target.value)} />
+                </label>
+                <label>
+                  Supporter's phone
+                  <input required inputMode="tel" value={supporter.supporterPhone} onChange={(event) => updateSupporter(index, "supporterPhone", event.target.value)} />
+                </label>
+                <label>
+                  Supporter's address
+                  <input required value={supporter.supporterAddress} onChange={(event) => updateSupporter(index, "supporterAddress", event.target.value)} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setSupporters((current) => current.length === 1 ? current : current.filter((_, supporterIndex) => supporterIndex !== index))}
+                  disabled={supporters.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button type="button" className="add-row" onClick={() => setSupporters((current) => [...current, { ...emptySupporter }])}>
+              Add another referral
+            </button>
+          </div>
+
+          <label className="check-row">
+            <input type="checkbox" checked={form.consentToContact} onChange={(event) => setForm({ ...form, consentToContact: event.target.checked })} />
+            I believe this person is comfortable being contacted by the campaign.
+          </label>
+          <button className="primary" disabled={submitting}>
+            {submitting ? "Adding..." : "Submit referral"}
+          </button>
+          {message ? <p className={message.startsWith("Thank") ? "success" : "error"}>{message}</p> : null}
+          {lastSubmitted.length ? (
+            <div className="send-panel">
+              <p>Send messages to the people just added.</p>
+              <div className="send-actions">
+                {lastSubmitted.map((submission, index) => {
+                  const phone = phoneForMessageLink(submission.supporterPhone);
+                  const text = messageFor(submission);
                   return (
-                    <a
-                      key={referral.id}
-                      href={`https://wa.me/${phone}?text=${encodeURIComponent(bulkMessage)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      WhatsApp {referral.supporterName}
-                    </a>
+                    <span className="message-pair" key={`${submission.supporterPhone}-${index}`}>
+                      <a href={`https://wa.me/${phone}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
+                        WhatsApp {submission.supporterName}
+                      </a>
+                      <a href={`sms:+${phone}?&body=${encodeURIComponent(text)}`}>
+                        Text {submission.supporterName}
+                      </a>
+                    </span>
                   );
                 })}
               </div>
-            ) : null}
-          </div>
-
-          {dashboardMessage ? <p className="notice">{dashboardMessage}</p> : null}
-
-          <div className="referral-list">
-            {filteredReferrals.map((referral) => (
-              <article className="referral-card" key={referral.id}>
-                <div className="card-main">
-                  <label className="select-row">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(referral.id)}
-                      onChange={() => toggleSelected(referral.id)}
-                    />
-                    Select
-                  </label>
-                  <div>
-                    <p className="eyebrow">{referral.ward} · {referral.supportLevel}</p>
-                    <h3>{referral.supporterName}</h3>
-                    <p>{referral.supporterPhone}</p>
-                    <p>{referral.supporterAddress} {referral.supporterPostal}</p>
-                  </div>
-                  <div>
-                    <p><strong>Referred by</strong> {referral.referrerName}</p>
-                    <p>{referral.referrerPhone}</p>
-                    <p>{new Date(referral.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="card-actions">
-                  <select value={referral.status} onChange={(event) => updateReferral(referral.id, event.target.value, referral.notes)}>
-                    {statusOptions.map((status) => <option key={status}>{status}</option>)}
-                  </select>
-                  <textarea
-                    value={referral.notes}
-                    onChange={(event) => setReferrals((current) => current.map((item) => item.id === referral.id ? { ...item, notes: event.target.value } : item))}
-                    onBlur={(event) => updateReferral(referral.id, referral.status, event.target.value)}
-                    placeholder="Follow-up notes"
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+            </div>
+          ) : null}
+        </form>
+      </section>
     </main>
   );
 }
